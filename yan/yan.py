@@ -2,7 +2,7 @@
 
 import sys
 import logging
-import agrapse
+import argparse
 
 import db
 import www
@@ -16,7 +16,7 @@ def main():
     args = parser.parse_args()
 
     # Настроить логирование
-    logging.basicConfig(level=log_level, format='%(levelname)s: %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
     # Открыть базу данных
     try:
@@ -26,12 +26,13 @@ def main():
         sys.exit(1)
 
     # Выкачать новости
-    news = www.YandexNews()
-    for cluster, news_list in news.clusters():
+    yanews = www.YandexNews()
+    for cluster, news_list in yanews.clusters():
 
         # Проверим, не присутствует ли какая-то новость из имеющихся в базе данных.
         # Если присутствует, обновим метку кластера.
-        cluster = dao.getClusterByNewsTexts([news["text"] for news in news_list])[0] or cluster
+        db_clusters = dao.getClustersByNewsTexts([news["text"] for news in news_list])
+        cluster = db_clusters[0] if db_clusters else cluster
 
         # Составить список новостей, которые уже есть в БД
         # с этой меткой кластера

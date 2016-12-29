@@ -13,8 +13,8 @@ class SQLiteDAO:
 
     def __init__(self, filename):
         self._engine = create_engine('sqlite:///' + filename)
-        self._metadata = Metadata()
-        self._news = Table('news', metadata,
+        self._metadata = MetaData()
+        self._news = Table('news', self._metadata,
             Column('id', Integer, Sequence('news_id_seq'), primary_key=True),
             Column('title', String(100), nullable=False),
             Column('text', String(500), nullable=False, index=True),
@@ -48,7 +48,7 @@ class SQLiteDAO:
         return news_list
 
     def getClustersByNewsTexts(self, texts):
-        s = select([self._news.cluster]).where(self._news.c.texts.in_(texts))
+        s = select([self._news.c.cluster]).where(self._news.c.text.in_(texts))
         result = self._conn.execute(s)
         return [r[0] for r in result]
 

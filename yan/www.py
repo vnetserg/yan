@@ -5,4 +5,5 @@ class YandexNews:
         pass
 
     def clusters(self):
-        pass
+        return [("123", [{"title": "Test", "text": "test text",
+            "cluster": "123"}])]
