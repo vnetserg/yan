@@ -21,12 +21,9 @@ def main():
     # Открыть базу данных
     try:
         dao = db.SQLiteDAO(args.file)
-    except IOError as exc:
-        logging.fatal("Не удалось открыть для записи файл {}: {}".format(args.file, exc.strerror))
+    except db.OpenError as exc:
+        logging.fatal("Не удалось открыть файл БД {}: {}".format(args.file, str(exc)))
         sys.exit(1)
-    except db.OpenError:
-        logging.fatal("Файл базы данных поврежден: {}".format(args.file))
-        sys.exit(2)
 
     # Выкачать новости
     news = www.YandexNews()
@@ -34,11 +31,11 @@ def main():
 
         # Проверим, не присутствует ли какая-то новость из имеющихся в базе данных.
         # Если присутствует, обновим метку кластера.
-        cluster = dao.getClusterByNewsTexts([news["text"] for news in news_list]) or cluster
+        cluster = dao.getClusterByNewsTexts([news["text"] for news in news_list])[0] or cluster
 
         # Составить список новостей, которые уже есть в БД
         # с этой меткой кластера
-        db_texts = set(news["text"] for news in dao.getNews(cluster=cluster))
+        db_texts = set(news["text"] for news in dao.getNewsByCluster(cluster))
 
         # Добавить все новости, которых в БД нет
         dao.addNews([news for news in news_list if news["text"] not in db_texts])
