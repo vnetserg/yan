@@ -12,6 +12,44 @@ class YandexNews:
 
     feeds = [
         "https://news.yandex.ru/index.rss",
+        "https://news.yandex.ru/auto.rss",
+        "https://news.yandex.ru/auto_racing.rss",
+        "https://news.yandex.ru/backetball.rss",
+        "https://news.yandex.ru/security.rss",
+        "https://news.yandex.ru/world.rss",
+        "https://news.yandex.ru/galleries.rss",
+        "https://news.yandex.ru/martial_arts.rss",
+        "https://news.yandex.ru/communal.rss",
+        "https://news.yandex.ru/games.rss",
+        "https://news.yandex.ru/internet.rss",
+        "https://news.yandex.ru/movies.rss",
+        "https://news.yandex.ru/crime.rss",
+        "https://news.yandex.ru/tu154.rss",
+        "https://news.yandex.ru/culture.rss",
+        "https://news.yandex.ru/fashion.rss",
+        "https://news.yandex.ru/music.rss",
+        "https://news.yandex.ru/science.rss",
+        "https://news.yandex.ru/realty.rss",
+        "https://news.yandex.ru/society.rss",
+        "https://news.yandex.ru/fire.rss",
+        "https://news.yandex.ru/politics.rss",
+        "https://news.yandex.ru/law.rss",
+        "https://news.yandex.ru/incident.rss",
+        "https://news.yandex.ru/religion.rss",
+        "https://news.yandex.ru/software.rss",
+        "https://news.yandex.ru/sport.rss",
+        "https://news.yandex.ru/theaters.rss",
+        "https://news.yandex.ru/tennis.rss",
+        "https://news.yandex.ru/computers.rss",
+        "https://news.yandex.ru/transport.rss",
+        "https://news.yandex.ru/finances.rss",
+        "https://news.yandex.ru/football.rss",
+        "https://news.yandex.ru/hockey.rss",
+        "https://news.yandex.ru/showbusiness.rss",
+        "https://news.yandex.ru/ecology.rss",
+        "https://news.yandex.ru/business.rss",
+        "https://news.yandex.ru/energy.rss",
+        "https://news.yandex.ru/hardware.rss"
     ]
 
     def clusters(self):
@@ -22,7 +60,7 @@ class YandexNews:
                 logging.info("Прошли по RSS-ссылке '{}'".format(one_news.title))
                 news_cluster = one_news.cluster()
                 if news_cluster:
-                    logging.info("Зашли во все источники '{}', спарсиили {} новостей"
+                    logging.info("Зашли во все источники '{}', спарсили {} новостей"
                                  .format(news_cluster.title, news_cluster.news_count))
                     yield news_cluster.title, news_cluster.toJson()
 
@@ -93,7 +131,10 @@ class YandexClusterNewsPage:
                 "topic": self.topic
             }
             news["datetime"] = self._parseDatetime(news["datetime"])
-            self._news.append(news)
+            if not news["title"] or not news["text"] or not news["cluster"]:
+                logging.warning("неправильная новость, игнорируем")
+            else:
+                self._news.append(news)
 
         self.news_count = len(self._news)
 
@@ -113,7 +154,7 @@ class YandexClusterNewsPage:
         elif words[-3] in self.month_map:
             day = int(words[-4])
             date = datetime.date(day=day, month=self.month_map[words[-3]],
-                year=datetime.today().year)
+                year=datetime.date.today().year)
             if date > datetime.date.today():
                 date -= datetime.timedelta(years=1)
         else:

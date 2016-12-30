@@ -1,4 +1,5 @@
 
+import csv
 import logging
 
 from sqlalchemy import create_engine, Table, Column, Integer, \
@@ -56,4 +57,11 @@ class SQLiteDAO:
     def getNewsByCluster(self, cluster):
         s = select([self._news]).where(self._news.c.cluster == cluster)
         result = self._conn.execute(s)
-        return [dict(row) for riw in result]
+        return [dict(row) for row in result]
+
+    def exportToCsv(self, csvpath):
+        rows = [dict(r) for r in self._conn.execute(select([self._news]))]
+        with open(csvpath, "w", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, [col.name for col in self._news.columns])
+            writer.writeheader()
+            writer.writerows(rows)
