@@ -9,6 +9,7 @@ from sqlalchemy.sql import select
 
 class OpenError(Exception): pass
 
+
 class SQLiteDAO:
 
     def __init__(self, filename):
