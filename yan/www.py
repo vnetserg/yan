@@ -59,7 +59,7 @@ class YandexNews:
             for one_news in rss.news():
                 logging.info("Прошли по RSS-ссылке '{}'".format(one_news.title))
                 news_cluster = one_news.cluster()
-                if news_cluster:
+                if news_cluster and news_cluster.title:
                     logging.info("Зашли во все источники '{}', спарсили {} новостей"
                                  .format(news_cluster.title, news_cluster.news_count))
                     yield news_cluster.title, news_cluster.toJson()
@@ -117,16 +117,19 @@ class YandexClusterNewsPage:
         time.sleep(1)
         self._html = requests.get(url).text
         self._soup = BeautifulSoup(self._html, "html.parser")
-        self.title = self._soup.find("h1", {"class": "story__head"}).text
-        self.topic = self._soup.find("li", {"class": "tabs-menu__tab_active_yes"}).text
         self._news = []
+
+        get_text = lambda x: x.text if hasattr(x, "text") else None
+
+        self.title = get_text(self._soup.find("h1", {"class": "story__head"}))
+        self.topic = get_text(self._soup.find("li", {"class": "tabs-menu__tab_active_yes"}))
 
         for div in self._soup.find_all("div", {"class" : "doc_for_instory"}):
             news = {
-                "title": div.find("h2", {"class" : "doc__title"}).text,
-                "text": div.find("div", {"class" : "doc__content"}).text,
-                "publisher": div.find("div", {"class" : "doc__agency"}).text,
-                "datetime": div.find("div", {"class" : "doc__time"}).text,
+                "title": get_text(div.find("h2", {"class" : "doc__title"})),
+                "text": get_text(div.find("div", {"class" : "doc__content"})),
+                "publisher": get_text(div.find("div", {"class" : "doc__agency"})),
+                "datetime": get_text(div.find("div", {"class" : "doc__time"})),
                 "cluster": self.title,
                 "topic": self.topic
             }
@@ -149,7 +152,7 @@ class YandexClusterNewsPage:
         elif words[-3] == "вчера":
             date = datetime.date.today() - datetime.timedelta(days=1)
         elif "." in words[-3]:
-            day, month, year = [int(x) for x in words[-3].split()]
+            day, month, year = [int(x) for x in words[-3].split(".")]
             date = datetime.date(day=day, month=month, year=2000+year)
         elif words[-3] in self.month_map:
             day = int(words[-4])
