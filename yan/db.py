@@ -2,6 +2,7 @@
 import csv
 import logging
 
+import yaml
 from sqlalchemy import create_engine, Table, Column, Integer, \
     String, MetaData, DateTime, Sequence
 
@@ -10,11 +11,13 @@ from sqlalchemy.sql import select
 
 class OpenError(Exception): pass
 
+class ConfigError(Exception): pass
 
-class SQLiteDAO:
 
-    def __init__(self, filename):
-        self._engine = create_engine('sqlite:///' + filename)
+class AbstractDAO:
+
+    def __init__(self, engine_string):
+        self._engine = create_engine(engine_string)
         self._metadata = MetaData()
         self._news = Table('news', self._metadata,
             Column('id', Integer, Sequence('news_id_seq'), primary_key=True),
@@ -65,3 +68,36 @@ class SQLiteDAO:
             writer = csv.DictWriter(f, [col.name for col in self._news.columns])
             writer.writeheader()
             writer.writerows(rows)
+
+
+class SQLiteDAO(AbstractDAO):
+    def __init__(self, filepath):
+        super(self).__init__('sqlite:///' + filename)
+
+
+class PostgresDAO(AbstractDAO):
+
+    DEFAULT_HOST = "127.0.0.1"
+    DEFAULT_PORT = 5432
+
+    def __init__(self, configpath):
+        try:
+            with open(configpath, "r") as f:
+                config = yaml.load(f)
+        except IOError as exc:
+            raise ConfigError(exc.strerror)
+        except yaml.YAMLError as exc:
+            raise ConfigError("ошибка YAML при парсинге: {}".format(exc))
+
+        if not isinstance(config, dict):
+            raise ConfigError("файл с конфигурацией должен быть словарем")
+
+        missing_keys = set(["user", "password", "database"]) - set(config.keys)
+        if missing_keys:
+            raise ConfigError("не найдены ключи: {}".format(", ".join(missing_keys)))
+
+        engine_string = 'postgresql://{}:{}@{}:{}/{}'.format(config["user"],
+            config["password"], config.get("host", self.DEFAULT_HOST),
+            config.get("port", self.DEFAULT_PORT), config["database"])
+
+        super(self).__init__(engine_string)
