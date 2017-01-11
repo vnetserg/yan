@@ -10,5 +10,5 @@ fi
 # Activate virtualenv
 source /opt/yan/bin/activate
 
-# Execute vipbot
+# Execute yan
 exec python -m yan.yan ${@:1}

@@ -4,19 +4,49 @@ import sys
 import logging
 import argparse
 
-from . import db
-from . import www
+import db
+import www
+
+
+DEFAULT_POSTGRES_FILE = "/etc/yan.yml"
+
+
+def open_sqlite(filepath):
+    try:
+        dao = db.SQLiteDAO(filepath)
+    except db.OpenError as exc:
+        logging.fatal("Не удалось открыть файл БД {}: {}".format(filepath, str(exc)))
+        sys.exit(3)
+    else:
+        return dao
+
+
+def open_postgres(configfile):
+    try:
+        dao = db.PostgresDAO(configfile)
+    except db.ConfigError as exc:
+        logging.fatal("Ошибка файла конфигурации {}: {}"
+                      .format(configfile, str(exc)))
+        sys.exit(2)
+    except db.OpenError as exc:
+        logging.fatal("Не удалось открыть соединение с БД: {}".format(str(exc)))
+        sys.exit(3)
+    else:
+        return dao
 
 
 def main():
 
     # Определить аргументы командой строки
     parser = argparse.ArgumentParser()
-    parser.add_argument("file", help="для SQLite - файл базы данных; "
-                        "для PostgreSQL - файл с конфигурацией")
-    parser.add_argument("-d", "--database", default="sqlite", choices=["sqlite", "postgres"],
-        help="тип базы данных (sqlite или postgres)")
+    parser.add_argument("-p", "--postgres", nargs="?", const=DEFAULT_POSTGRES_FILE,
+        help="использовать PostgreSQL c указанным файлом конфигурации"
+             "(по умолчанию /etc/yan.yml)")
+    parser.add_argument("-s", "--sqlite",
+        help="использовать указанный файл SQLite")
     parser.add_argument("-e", "--export", help="CSV-файл для экспорта базы данных")
+    parser.add_argument("-m", "--migrate", nargs="?", const=True,
+        help="перенести данные из одной БД в другую")
     parser.add_argument("-l", "--log", help="путь к лог-файлу")
     parser.add_argument("-f", "--forever", type=bool, default=False,
         help="перезапускать парсер бесконечно до прерывания")
@@ -26,34 +56,44 @@ def main():
     logging.basicConfig(level=logging.INFO, filename=args.log,
         format='[%(asctime)s] %(levelname)s: %(message)s')
 
+    # Проверить непротиворечивость аргументов командной строки
+    if args.postgres and args.sqlite:
+        logging.fatal("конфликтующие аргументы: --postgres и --slqite")
+        sys.exit(1)
+    if not args.postgres and not args.sqlite:
+        args.postgres = DEFAULT_POSTGRES_FILE
+    if args.postgres and args.migrate is True:
+        logging.fatal("для миграции данных в SQLite необходимо указать путь к файлу (в аргументе --migrate)")
+        sys.exit(2)
+    if args.migrate is True:
+        args.migrate = DEFAULT_POSTGRES_FILE
 
     # Открыть базу данных
-    if args.database == "sqlite":
-        try:
-            dao = db.SQLiteDAO(args.file)
-        except db.OpenError as exc:
-            logging.fatal("Не удалось открыть файл БД {}: {}".format(args.file, str(exc)))
-            sys.exit(1)
+    if args.sqlite:
+        dao = open_sqlite(args.sqlite)
     else:
-        try:
-            dao = db.PostgresDAO(args.file)
-        except db.ConfigError as exc:
-            logging.fatal("Ошибка файла конфигурации {}: {}"
-                          .format(args.file, str(exc)))
-            sys.exit(2)
-        except db.OpenError as exc:
-            logging.fatal("Не удалось открыть соединение с БД: {}".format(str(exc)))
-            sys.exit(3)
+        dao = open_postgres(args.postgres)
 
-    # Если надо просто экспортировать данные в CSV, то делаем это и выходим
+    # Экспортировать данные в CSV
     if args.export:
         try:
             dao.exportToCsv(args.export)
         except IOError as exc:
             logging.fatal("Не удалось открыть для записи файл {}: {}".format(args.export, exc.strerror))
             sys.exit(4)
+
+    # Перенести данные из одной БД в другую
+    if args.migrate:
+        if args.postgres:
+            target_dao = open_sqlite(args.migrate)
         else:
-            sys.exit(0)
+            target_dao = open_postgres(args.migrate)
+        target_dao.populateFrom(dao)
+        target_dao.close()
+
+    # Если были даны флаги -e или -m, то на этом заканчиваем
+    if args.migrate or args.export:
+        sys.exit(0)
 
     # Выкачать новости
     yanews = www.YandexNews()

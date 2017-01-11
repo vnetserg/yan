@@ -1,6 +1,7 @@
 
 import csv
 import logging
+import itertools
 
 import yaml
 from sqlalchemy import create_engine, Table, Column, Integer, \
@@ -22,7 +23,7 @@ class AbstractDAO:
         self._news = Table('news', self._metadata,
             Column('id', Integer, Sequence('news_id_seq'), primary_key=True),
             Column('title', String(100), nullable=False),
-            Column('text', String(500), nullable=False, index=True),
+            Column('text', String(500), nullable=False, index=True, unique=True),
             Column('topic', String(30)),
             Column('cluster', String(100), nullable=False, index=True),
             Column('datetime', DateTime),
@@ -69,10 +70,28 @@ class AbstractDAO:
             writer.writeheader()
             writer.writerows(rows)
 
+    def populateFrom(self, other):
+        for i in itertools.count(step=10000):
+            news = other._conn.execute(select([other._news]).limit(10000).offset(i))
+            if not news:
+                return
+            for n in news:
+                news.pop("id", None)
+            to_insert = [n for n in news if not self._newsExists(n["text"])]
+            self._conn.execute(self._news.insert(), to_insert)
+
+    def _newsExists(self, text):
+        s = select([self._news.c.id]) \
+                .where(self._news.c.text == news["text"]).limit(1)
+        return bool(list(self._conn.execute(s)))
+
+    def close(self):
+        self._conn.close()
+
 
 class SQLiteDAO(AbstractDAO):
     def __init__(self, filepath):
-        super(self).__init__('sqlite:///' + filename)
+        super().__init__('sqlite:///' + filepath)
 
 
 class PostgresDAO(AbstractDAO):
@@ -100,4 +119,4 @@ class PostgresDAO(AbstractDAO):
             config["password"], config.get("host", self.DEFAULT_HOST),
             config.get("port", self.DEFAULT_PORT), config["database"])
 
-        super(self).__init__(engine_string)
+        super().__init__(engine_string)

@@ -1,6 +1,8 @@
 
 VIRTUALENV_PATH=/opt/yan
 BIN_PATH=/usr/bin
+CONFIG_PATH=/etc
+
 
 # By default do nothing
 
@@ -30,9 +32,10 @@ clean-pyc:
 
 # Installation target
 
-install:
+install: uninstall
 	bash ./setupvenv.sh ${VIRTUALENV_PATH}
 	cp yan.sh ${BIN_PATH}/yan
+	cp postgres.yml ${CONFIG_PATH}/yan.yml
 
 
 # Uninstallation target
