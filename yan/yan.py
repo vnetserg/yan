@@ -12,13 +12,14 @@ def main():
 
     # Определить аргументы командой строки
     parser = argparse.ArgumentParser()
-    parser.add_argument("file", help="for SQLite - database file; for PostgreSQL - database config file")
+    parser.add_argument("file", help="для SQLite - файл базы данных; "
+                        "для PostgreSQL - файл с конфигурацией")
     parser.add_argument("-d", "--database", default="sqlite", choices=["sqlite", "postgres"],
-        help="database type to use (sqlite or postgres)")
-    parser.add_argument("-e", "--export", help="CSV file to export database")
-    parser.add_argument("-l", "--log", help="path to log file")
+        help="тип базы данных (sqlite или postgres)")
+    parser.add_argument("-e", "--export", help="CSV-файл для экспорта базы данных")
+    parser.add_argument("-l", "--log", help="путь к лог-файлу")
     parser.add_argument("-f", "--forever", type=bool, default=False,
-        help="run parser in a loop indefinetely")
+        help="перезапускать парсер бесконечно до прерывания")
     args = parser.parse_args()
 
     # Настроить логирование

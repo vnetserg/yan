@@ -1,0 +1,6 @@
+# Пример конфиг-файла для соединения с PostgreSQL
+user: boris # имя пользователя
+password: matreshka # пароль
+database: yan # имя базы данных
+host: 127.0.0.1 # сервер базы данных
+port: 5342 # TCP-порт
