@@ -2,7 +2,7 @@
 
 import os
 import pip
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 # Parse requirements:
@@ -17,5 +17,5 @@ setup(
     author_email='sergio-dna@yandex.ru',
     install_requires=[str(r.req) for r in requires if r.req],
     dependency_links=[str(r.link) for r in requires if r.link],
-    py_modules=['yan']
+    packages=find_packages()
 )
