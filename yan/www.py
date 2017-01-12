@@ -1,7 +1,8 @@
 
 import time
-import datetime
+import random
 import logging
+import datetime
 import requests
 
 import feedparser
@@ -65,10 +66,15 @@ class YandexNews:
                     yield news_cluster.title, news_cluster.toJson()
 
 
-class YandexRssPage:
+class WebPage:
+    def sleep(self):
+        time.sleep(5 + 10*random.random())
+
+
+class YandexRssPage(WebPage):
 
     def __init__(self, url):
-        time.sleep(1)
+        self.sleep()
         self._feed = feedparser.parse(url)
 
     def news(self):
@@ -77,10 +83,10 @@ class YandexRssPage:
                 yield YandexSingleNewsPage(entry["links"][0]["href"])
 
 
-class YandexSingleNewsPage:
+class YandexSingleNewsPage(WebPage):
 
     def __init__(self, url):
-        time.sleep(1)
+        self.sleep()
         self._html = requests.get(url).text
         self._soup = BeautifulSoup(self._html, "html.parser")
         self._cluster_link = None
@@ -105,7 +111,7 @@ class YandexSingleNewsPage:
             return YandexClusterNewsPage("https://news.yandex.ru" + self._cluster_link)
 
 
-class YandexClusterNewsPage:
+class YandexClusterNewsPage(WebPage):
 
     month_map = {
         "января": 1,
@@ -123,7 +129,7 @@ class YandexClusterNewsPage:
     }
 
     def __init__(self, url):
-        time.sleep(1)
+        self.sleep()
         self._html = requests.get(url).text
         self._soup = BeautifulSoup(self._html, "html.parser")
         self._news = []
