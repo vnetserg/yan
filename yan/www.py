@@ -9,6 +9,10 @@ import feedparser
 from bs4 import BeautifulSoup
 
 
+# Внутрннее исключение на случай, если нарвались на каптчу
+class CaptchaError(Exception): pass
+
+
 class YandexNews:
 
     feeds = [
@@ -66,12 +70,21 @@ class YandexNews:
                     yield news_cluster.title, news_cluster.toJson()
 
 
-class WebPage:
+class AbstractPage:
     def sleep(self):
         time.sleep(5 + 10*random.random())
 
+    def try_captcha(self, callable, args):
+        while True:
+            try:
+                return callable(*args)
+            except CaptchaError:
+                minutes = 15 + 30*random.random()
+                logging.warning("нарвались на каптчу, отдыхаем {} минут".format(minutes))
+                time.sleep(60*minutes)
 
-class YandexRssPage(WebPage):
+
+class YandexRssPage(AbstractPage):
 
     def __init__(self, url):
         self.sleep()
@@ -80,15 +93,25 @@ class YandexRssPage(WebPage):
     def news(self):
         for entry in self._feed["entries"]:
             if entry["links"]:
-                yield YandexSingleNewsPage(entry["links"][0]["href"])
+                url = entry["links"][0]["href"]
+                yield self.try_captcha(YandexSingleNewsPage, [url])
 
 
-class YandexSingleNewsPage(WebPage):
-
+class AbstractWebPage(AbstractPage):
     def __init__(self, url):
         self.sleep()
         self._html = requests.get(url).text
         self._soup = BeautifulSoup(self._html, "html.parser")
+
+        # Проверить, не нарвались ли на каптчу
+        if "https://news.yandex.ru/captcha" in self._html:
+            raise CaptchaError
+
+
+class YandexSingleNewsPage(AbstractWebPage):
+
+    def __init__(self, url):
+        super().__init__(url)
         self._cluster_link = None
 
         story_head = self._soup.find("h1", {"class": "story__head"})
@@ -108,10 +131,11 @@ class YandexSingleNewsPage(WebPage):
 
     def cluster(self):
         if self._cluster_link:
-            return YandexClusterNewsPage("https://news.yandex.ru" + self._cluster_link)
+            link = "https://news.yandex.ru" + self._cluster_link
+            return self.try_captcha(YandexClusterNewsPage, [link])
 
 
-class YandexClusterNewsPage(WebPage):
+class YandexClusterNewsPage(AbstractWebPage):
 
     month_map = {
         "января": 1,
@@ -129,9 +153,7 @@ class YandexClusterNewsPage(WebPage):
     }
 
     def __init__(self, url):
-        self.sleep()
-        self._html = requests.get(url).text
-        self._soup = BeautifulSoup(self._html, "html.parser")
+        super().__init__(url)
         self._news = []
 
         get_text = lambda x: x.text if hasattr(x, "text") else None
