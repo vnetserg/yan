@@ -24,7 +24,7 @@ class AbstractDAO:
         self._news = Table('news', self._metadata,
             Column('id', Integer, Sequence('news_id_seq'), primary_key=True),
             Column('title', String(300), nullable=False),
-            Column('text', String(1000), nullable=False, index=True, unique=True),
+            Column('text', String(4000), nullable=False, index=True, unique=True),
             Column('topic', String(50)),
             Column('cluster', String(300), nullable=False, index=True),
             Column('datetime', DateTime),
@@ -40,7 +40,6 @@ class AbstractDAO:
 
     def addNews(self, news_list):
         news_list = self._preprocessNews(news_list)
-        print([len(n["text"]) for n in news_list])
         self._conn.execute(self._news.insert(), news_list)
 
     def _preprocessNews(self, news_list):
@@ -50,20 +49,21 @@ class AbstractDAO:
                 if isinstance(column.type, String):
                     name = column.name
                     if len(news.get(name, "")) > column.type.length:
-                        logging.warning("обрезано значения для столбца '{}' (с {} до {})"
-                            .format(name, len(news[column]), column.type.length))
-                        news[column] = news[column][:column.type.length]
+                        logging.warning("обрезано значение для столбца '{}' (с {} до {})"
+                            .format(name, len(news[name]), column.type.length))
+                        news[name] = news[name][:column.type.length]
         return news_list
 
     def getClustersByNewsTexts(self, texts):
+        texts = [t[:self._news.c.text.type.length] for t in texts]
         s = select([self._news.c.cluster]).where(self._news.c.text.in_(texts))
         result = self._conn.execute(s)
         return [r[0] for r in result]
 
-    def getNewsByCluster(self, cluster):
-        s = select([self._news]).where(self._news.c.cluster == cluster)
-        result = self._conn.execute(s)
-        return [dict(row) for row in result]
+    def renameClusters(self, old_names, new_name):
+        s = self._news.update().where(self._news.c.cluster.in_(old_names)) \
+                .values(cluster=new_name)
+        self._conn.execute(s)
 
     def exportToCsv(self, csvpath):
         rows = [dict(r) for r in self._conn.execute(select([self._news]))]
@@ -74,17 +74,29 @@ class AbstractDAO:
 
     def populateFrom(self, other):
         for i in itertools.count(step=10000):
-            news = other._conn.execute(select([other._news]).limit(10000).offset(i))
+            result = other._conn.execute(select([other._news]).limit(10000).offset(i))
+            news = [dict(n) for n in result]
             if not news:
                 return
             for n in news:
-                news.pop("id", None)
-            to_insert = [n for n in news if not self._newsExists(n["text"])]
-            self._conn.execute(self._news.insert(), to_insert)
+                n.pop("id", None)
 
-    def _newsExists(self, text):
+            news = self._preprocessNews(news)
+
+            texts_present = set()
+            to_insert = []
+            for n in news:
+                if n["text"] not in texts_present and not self.newsTextExists(n["text"]):
+                    to_insert.append(n)
+                    texts_present.add(n["text"])
+
+            if to_insert:
+                self._conn.execute(self._news.insert(), to_insert)
+
+    def newsTextExists(self, text):
+        text = text[:self._news.c.text.type.length]
         s = select([self._news.c.id]) \
-                .where(self._news.c.text == news["text"]).limit(1)
+                .where(self._news.c.text == text).limit(1)
         return bool(list(self._conn.execute(s)))
 
     def close(self):

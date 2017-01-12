@@ -48,7 +48,7 @@ def main():
     parser.add_argument("-m", "--migrate", nargs="?", const=True,
         help="перенести данные из одной БД в другую")
     parser.add_argument("-l", "--log", help="путь к лог-файлу")
-    parser.add_argument("-f", "--forever", type=bool, default=False,
+    parser.add_argument("-f", "--forever", action="store_true",
         help="перезапускать парсер бесконечно до прерывания")
     args = parser.parse_args()
 
@@ -109,18 +109,15 @@ def main():
             # Проверим, не присутствует ли какая-то новость из имеющихся в базе данных.
             # Если присутствует, обновим метку кластера.
             db_clusters = dao.getClustersByNewsTexts([news["text"] for news in news_list])
-            cluster = db_clusters[0] if db_clusters else cluster
-            for news in news_list:
-                news["cluster"] = cluster
+            if db_clusters:
+                dao.renameClusters(db_clusters, cluster)
 
-            # Составить список новостей, которые уже есть в БД
-            # с этой меткой кластера
-            db_texts = set(news["text"] for news in dao.getNewsByCluster(cluster))
+            # Составить список новостей, которых еще нет в БД
+            to_insert = [news for news in news_list if not dao.newsTextExists(news["text"])]
 
             # Добавить все новости, которых в БД нет
-            to_add = [news for news in news_list if news["text"] not in db_texts]
-            if to_add:
-                dao.addNews(to_add)
+            if to_insert:
+                dao.addNews(to_insert)
 
         first_time = False
 
