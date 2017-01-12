@@ -95,7 +95,10 @@ class YandexSingleNewsPage:
             if "Все источники — " in link.text:
                 self._cluster_link = link.get("href")
         if self._cluster_link is None:
-            logging.warning("Не найдено ссылки на 'Все источники'")
+            logging.warning("Не найдено ссылки на 'Все источники'. "
+                            "Сохраняем страницу: yan_error.html")
+            with open("yan_error.html", "w") as f:
+                f.write(self._html)
 
     def cluster(self):
         if self._cluster_link:
