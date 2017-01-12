@@ -3,6 +3,7 @@
 import sys
 import logging
 import argparse
+import traceback
 
 from . import db
 from . import www
@@ -112,6 +113,9 @@ def main():
             if db_clusters:
                 dao.renameClusters(db_clusters, cluster)
 
+            # Сделать список новостей уникальным (на всякий случай)
+            news_list = list({news["text"]: news for news in news_list}.values())
+
             # Составить список новостей, которых еще нет в БД
             to_insert = [news for news in news_list if not dao.newsTextExists(news["text"])]
 
@@ -130,4 +134,7 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         logging.info("Прервано пользователем.")
-        sys.exit(0)
+        sys.exit(5)
+    except Exception:
+        logging.fatal(traceback.format_exc())
+        sys.exit(6)

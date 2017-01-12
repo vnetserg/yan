@@ -81,14 +81,11 @@ class AbstractDAO:
             for n in news:
                 n.pop("id", None)
 
+            # На всякий случай: обрезать тексты, если они слишком длинные,
+            # и убедиться, что тексты наших новостей уникальны
             news = self._preprocessNews(news)
-
-            texts_present = set()
-            to_insert = []
-            for n in news:
-                if n["text"] not in texts_present and not self.newsTextExists(n["text"]):
-                    to_insert.append(n)
-                    texts_present.add(n["text"])
+            to_insert = list({n["text"]: n for n in news
+                              if not self.newsTextExists(n["text"])}.values())
 
             if to_insert:
                 self._conn.execute(self._news.insert(), to_insert)
