@@ -35,7 +35,7 @@ clean-pyc:
 install: uninstall
 	bash ./setupvenv.sh ${VIRTUALENV_PATH}
 	cp yan.sh ${BIN_PATH}/yan
-	cp postgres.yml ${CONFIG_PATH}/yan.yml
+	if [ ! -f ${CONFIG_PATH}/yan.yml ]; then cp postgres.yml ${CONFIG_PATH}/yan.yml; fi
 
 
 # Uninstallation target

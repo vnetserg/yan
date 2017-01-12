@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, Table, Column, Integer, \
     String, MetaData, DateTime, Sequence
 
 from sqlalchemy.sql import select
+from sqlalchemy.exc import OperationalError
 
 
 class OpenError(Exception): pass
@@ -22,33 +23,34 @@ class AbstractDAO:
         self._metadata = MetaData()
         self._news = Table('news', self._metadata,
             Column('id', Integer, Sequence('news_id_seq'), primary_key=True),
-            Column('title', String(100), nullable=False),
-            Column('text', String(500), nullable=False, index=True, unique=True),
-            Column('topic', String(30)),
-            Column('cluster', String(100), nullable=False, index=True),
+            Column('title', String(300), nullable=False),
+            Column('text', String(1000), nullable=False, index=True, unique=True),
+            Column('topic', String(50)),
+            Column('cluster', String(300), nullable=False, index=True),
             Column('datetime', DateTime),
-            Column('publisher', String(30)),
+            Column('publisher', String(100)),
         )
 
         try:
             self._metadata.create_all(self._engine)
-        except sqlalchemy.exc.OperationalError as exc:
+        except OperationalError as exc:
             raise OpenError(str(exc))
 
         self._conn = self._engine.connect()
 
     def addNews(self, news_list):
         news_list = self._preprocessNews(news_list)
+        print([len(n["text"]) for n in news_list])
         self._conn.execute(self._news.insert(), news_list)
 
     def _preprocessNews(self, news_list):
         for news in news_list:
             # Проверить, что строковые значения не слишком длинные
             for column in self._news.columns:
-                if isinstance(column, String):
+                if isinstance(column.type, String):
                     name = column.name
                     if len(news.get(name, "")) > column.type.length:
-                        logging.waning("обрезано значения для столбца '{}' (с {} до {})"
+                        logging.warning("обрезано значения для столбца '{}' (с {} до {})"
                             .format(name, len(news[column]), column.type.length))
                         news[column] = news[column][:column.type.length]
         return news_list
@@ -111,7 +113,7 @@ class PostgresDAO(AbstractDAO):
         if not isinstance(config, dict):
             raise ConfigError("файл с конфигурацией должен быть словарем")
 
-        missing_keys = set(["user", "password", "database"]) - set(config.keys)
+        missing_keys = set(["user", "password", "database"]) - set(config.keys())
         if missing_keys:
             raise ConfigError("не найдены ключи: {}".format(", ".join(missing_keys)))
 

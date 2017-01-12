@@ -4,8 +4,8 @@ import sys
 import logging
 import argparse
 
-import db
-import www
+from . import db
+from . import www
 
 
 DEFAULT_POSTGRES_FILE = "/etc/yan.yml"

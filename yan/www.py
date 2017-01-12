@@ -83,8 +83,14 @@ class YandexSingleNewsPage:
         time.sleep(1)
         self._html = requests.get(url).text
         self._soup = BeautifulSoup(self._html, "html.parser")
-        self.title = self._soup.find("h1", {"class": "story__head"}).text
         self._cluster_link = None
+
+        story_head = self._soup.find("h1", {"class": "story__head"})
+        if hasattr(story_head, "text"):
+            self.title = story_head.text
+        else:
+            self.title = None
+
         for link in self._soup.find_all("a"):
             if "Все источники — " in link.text:
                 self._cluster_link = link.get("href")
