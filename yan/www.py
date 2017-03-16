@@ -1,4 +1,5 @@
 
+import os
 import time
 import random
 import logging
@@ -126,8 +127,11 @@ class YandexSingleNewsPage(AbstractWebPage):
         if self._cluster_link is None:
             logging.warning("Не найдено ссылки на 'Все источники'. "
                             "Сохраняем страницу: yan_error.html")
-            with open("yan_error.html", "w") as f:
-                f.write(self._html)
+            try:
+                with open("yan_error.html", "w") as f:
+                    f.write(self._html)
+            except IOError as exc:
+                logging.warning("не удалось сохранить страницу {}/yan_error.html: {}".format(os.getcwd(), exc.strerror))
 
     def cluster(self):
         if self._cluster_link:
