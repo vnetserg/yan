@@ -48,6 +48,8 @@ def main():
     parser.add_argument("-e", "--export", help="CSV-файл для экспорта базы данных")
     parser.add_argument("-m", "--migrate", nargs="?", const=True,
         help="перенести данные из одной БД в другую")
+    parser.add_argument("-t", "--tor", metavar="PASSWORD",
+        help="использовать Tor для веб-запросов")
     parser.add_argument("-l", "--log", help="путь к лог-файлу")
     parser.add_argument("-f", "--forever", action="store_true",
         help="перезапускать парсер бесконечно до прерывания")
@@ -95,6 +97,10 @@ def main():
     # Если были даны флаги -e или -m, то на этом заканчиваем
     if args.migrate or args.export:
         sys.exit(0)
+
+    # Если надо использовать Тор, то спрашиваем пароль
+    if args.tor:
+        www.AbstractWebPage.setTorPassword(args.tor)
 
     # Выкачать новости
     yanews = www.YandexNews()

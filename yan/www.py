@@ -4,8 +4,9 @@ import time
 import random
 import logging
 import datetime
-import requests
 
+import requests
+import stem.control
 import feedparser
 from bs4 import BeautifulSoup
 
@@ -99,14 +100,39 @@ class YandexRssPage(AbstractPage):
 
 
 class AbstractWebPage(AbstractPage):
+    use_tor = False
+
     def __init__(self, url):
         self.sleep()
-        self._html = requests.get(url).text
+        self._html = self.getHtml(url)
         self._soup = BeautifulSoup(self._html, "html.parser")
 
         # Проверить, не нарвались ли на каптчу
         if "https://news.yandex.ru/captcha" in self._html:
             raise CaptchaError
+
+    @classmethod
+    def setTorPassword(cls, passwd):
+        cls.use_tor = True
+        cls.tor_passwd = passwd
+
+
+    @classmethod
+    def getHtml(cls, url):
+        if not cls.use_tor:
+            return requests.get(url).text
+        ses = requests.session()
+        ses.proxies = {'http':  'socks5://127.0.0.1:9050',
+                       'https': 'socks5://127.0.0.1:9050'}
+        html = ses.get(url).text
+        cls.renewTorConnection()
+        return html
+
+    @classmethod
+    def renewTorConnection(cls):
+        with stem.control.Controller.from_port(port = 9051) as controller:
+            controller.authenticate(password=cls.tor_passwd)
+            controller.signal(stem.Signal.NEWNYM)
 
 
 class YandexSingleNewsPage(AbstractWebPage):
